@@ -15,7 +15,7 @@ JWT for Authentication
 Nodemailer for Email Communication
 Multer for File Uploads**
 Getting Started:
-Clone the repository: git clone https://github.com/yourusername/ecom-api.git
+Clone the repository: https://github.com/CodingStarMannu/E-Commerce-APIs.git
 Install dependencies: npm install
 Configure environment variables: Set up your environment variables for MongoDB, JWT, and other configurations.
-Run the application:** npm start**
+Run the application: **npm start** and **npm run dev**
