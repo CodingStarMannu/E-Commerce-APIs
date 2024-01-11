@@ -19,6 +19,10 @@ router.post('/change-password', authMiddleware, user.changePassword);
 
 router.post('/forget-password', user.forgetPassword);
 
-router.get('/reset-password/:id/:token', user.resetPassword);
+router.patch('/reset-password/:id/:token', user.resetPassword);
+
+// router.post('/forget-password', user.forgetPasswordOTP);
+
+// router.get('/reset-password/:id/:token', user.resetPasswordWithOTP);
 
 module.exports = router;

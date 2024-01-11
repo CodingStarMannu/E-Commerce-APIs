@@ -3,7 +3,8 @@ require('dotenv').config();
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-// const randomstring = require('randomstring');
+const speakeasy = require('speakeasy');
+
 
 
 // const sendResetPasswordMail =  async (name, email, token) =>{
@@ -273,6 +274,8 @@ const forgetPassword = async (req, res) => {
         const token = jwt.sign(payload, secret, { expiresIn: '10m' });
         const resetLink = `http://localhost:3001/user/reset-password/${user._id}/${token}`;
 
+        console.log(resetLink);
+
         const emailSubject = 'Password Reset';
         const emailBody = `<p>Hi ${user.name},</p>
                             <p>Please click the link below to reset your password:</p>
@@ -319,18 +322,18 @@ const resetPassword = async (req, res) => {
             return res.status(400).json({ success: false, message: 'New password and confirm password do not match' });
         }
 
-        const secret = process.env.SECRET_KEY;
+        const user = await User.findOne({ _id: id });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        const secret = process.env.SECRET_KEY + user.password;
         const decoded = jwt.verify(token, secret);
 
 
         if (id !== decoded.id) {
             return res.status(400).json({ success: false, message: 'Invalid user ID in the token' });
-        }
-
-        const user = await User.findOne({ _id: id });
-
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
         }
 
         user.password = await bcryptjs.hash(newPassword, 10);
@@ -350,5 +353,100 @@ const resetPassword = async (req, res) => {
 };
 
 
+const forgetPasswordOTP = async (req, res) => {
+    try {
+        console.log("forget password", req.body);
+        const { email } = req.body;
+        console.log(email);
 
-module.exports ={login_user, register_user, save_user_data, updateUserData, logout_user , changePassword, forgetPassword, resetPassword}
+        const user = await User.findOne({ email: email });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Generate OTP
+        const otpSecret = speakeasy.generateSecret({ length: 6 });
+        const otpToken = speakeasy.totp({
+            secret: otpSecret.base32,
+            encoding: 'base32'
+        });
+
+        // Store OTP secret and token in the user document
+        user.otpSecret = otpSecret.base32;
+        user.otpToken = otpToken;
+        await user.save();
+
+        // Send the OTP to the user via email
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
+            }
+        });
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: 'Password Reset OTP',
+            html: `<p>Your OTP for password reset is: ${otpToken}</p>`
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({ success: true, message: 'OTP sent successfully.' });
+    } catch (error) {
+        console.error('Error in forgetting password:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+};
+
+const resetPasswordWithOTP = async (req, res) => {
+    try {
+        const { id, otp } = req.params;
+        console.log(id);
+        console.log(otp);
+        const { newPassword, confirmPassword } = req.body;
+
+        if (!newPassword || !confirmPassword) {
+            return res.status(400).json({ success: false, message: 'Both newPassword and confirmPassword are required' });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ success: false, message: 'New password and confirm password do not match' });
+        }
+
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Verify the OTP
+        const otpValid = speakeasy.totp.verify({
+            secret: user.otpSecret,
+            encoding: 'base32',
+            token: otp,
+            window: 1 // Allow a time window of 1 step (30 seconds) in case of clock skew
+        });
+
+        if (!otpValid) {
+            return res.status(400).json({ success: false, message: 'Invalid OTP' });
+        }
+
+        // Reset password logic here
+        user.password = await bcryptjs.hash(newPassword, 10);
+        await user.save();
+
+        res.status(200).json({ success: true, message: 'Password reset successful' });
+    } catch (error) {
+        console.error('Error in resetting password:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+};
+
+
+module.exports ={login_user, register_user, save_user_data, updateUserData, logout_user , changePassword, forgetPassword, resetPassword, forgetPasswordOTP, resetPasswordWithOTP}
