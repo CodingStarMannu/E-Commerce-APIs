@@ -51,20 +51,17 @@ const updateCart = async (req, res) => {
       if (!cart) {
           return res.status(404).json({ success: false, message: 'Cart not found' });
       }
-      console.log("cart._doc.items:",cart._doc.items);
+      // console.log("cart._doc.items:",cart._doc.items);
 
-      const productIdToFind = product_id; // Replace this with the actual product_id you're looking for
+      const productIdToFind = product_id;
 
-      const cartItem = cart.items.find(item => item.product_id && item.product_id.toString() === productIdToFind);
+      const cartItem = cart.items.find(item => item.product_id && item.product_id.toString() === productIdToFind);//find is used to find the first element in the array that satisfies the condition returns undefined if not found
 
-      if (cartItem) {
-          console.log('Item found:', cartItem);
-      } else {
-          console.log('Item not found');
-      }
-
-      // const cartItem = cart._doc.items.find(item => item.product_id === product_id || item.product === product_id);
-      // console.log("cartItem",cartItem);
+      // if (cartItem) {
+      //     console.log('Item found:', cartItem);
+      // } else {
+      //     console.log('Item not found');
+      // }
 
       if (cartItem) {
           cartItem.quantity = quantity || 1;
@@ -83,6 +80,36 @@ const updateCart = async (req, res) => {
 };
 
 
+const deleteCartItem = async (req,res)=>{
+
+  try {
+
+    const{id} = req.params;
+    const user_id = req.userId;
+    let cart =  await Cart.findOne({user_id});
+
+    if(!cart){
+      return res.status(404).json({success:false, message:'Cart not Found!'});
+    }
+
+    // const itemIndex = cart.item.findIndex(item=>item._id.toString()===id);//The findIndex method is similar to find, but it returns the index of the first element that satisfies the testing function, or -1 if no such element is found
+
+    // if (itemIndex === -1) {
+    //   return res.status(404).json({ success: false, message: 'Item not found in cart' });
+    // }
+
+    // cart.items.splice(itemIndex,1);
+
+    cart.items = cart.items.filter(item => item._id.toString() !== id);
+
+    await cart.save();
+
+    res.status(200).json({ success: true, message: 'Item removed from cart successfully', cart });
+  } catch (error) {
+    console.error('Error in deleting item from cart:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+}
 
 
-module.exports = { addToCart, updateCart};
+module.exports = { addToCart, updateCart, deleteCartItem};
