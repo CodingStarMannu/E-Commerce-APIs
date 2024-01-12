@@ -111,5 +111,45 @@ const deleteCartItem = async (req,res)=>{
   }
 }
 
+const getCartItem = async (req, res) => {
+  try {
+    const user_id = req.userId;
 
-module.exports = { addToCart, updateCart, deleteCartItem};
+    let cart = await Cart.findOne({ user_id });
+
+    if (!cart) {
+      return res.status(404).json({ success: false, message: 'Cart not found' });
+    }
+
+    res.status(200).json({ success: true, items: cart.items });
+  } catch (error) {
+    console.error('Error in getting items from cart:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+const getCartItemById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user_id = req.userId;
+
+    let cart = await Cart.findOne({ user_id });
+
+    if (!cart) {
+      return res.status(404).json({ success: false, message: 'Cart not found' });
+    }
+
+    const cartItem = cart.items.find(item => item._id.toString() === id);
+
+    if (!cartItem) {
+      return res.status(404).json({ success: false, message: 'Item not found in cart' });
+    }
+
+    res.status(200).json({ success: true, item: cartItem });
+  } catch (error) {
+    console.error('Error in getting item from cart:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+module.exports = { addToCart, updateCart, deleteCartItem, getCartItem, getCartItemById };
