@@ -1,9 +1,12 @@
+
 const User = require('../models/user');
 require('dotenv').config();
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const speakeasy = require('speakeasy');
+const Wishlists = require('../models/wishlist');
+const Products = require('../models/product');
 
 
 
@@ -272,7 +275,7 @@ const forgetPassword = async (req, res) => {
         };
 
         const token = jwt.sign(payload, secret, { expiresIn: '10m' });
-        const resetLink = `http://localhost:3001/user/reset-password/${user._id}/${token}`;
+        const resetLink = 'http://localhost:3001/user/reset-password/${user._id}/${token}';
 
         console.log(resetLink);
 
@@ -280,7 +283,7 @@ const forgetPassword = async (req, res) => {
         const emailBody = `<p>Hi ${user.name},</p>
                             <p>Please click the link below to reset your password:</p>
                             <p>This Link is valid for one time and for 10 mins only</p>
-                            <a href="${resetLink}">${resetLink}</a>`;
+ <a href="${resetLink}">${resetLink}</a>`;
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
@@ -392,7 +395,7 @@ const forgetPasswordOTP = async (req, res) => {
             from: process.env.EMAIL_USER,
             to: user.email,
             subject: 'Password Reset OTP',
-            html: `<p>Your OTP for password reset is: ${otpToken}</p>`
+            html: '<p>Your OTP for password reset is: ${otpToken}</p>'
         };
 
         await transporter.sendMail(mailOptions);
@@ -449,4 +452,127 @@ const resetPasswordWithOTP = async (req, res) => {
 };
 
 
-module.exports ={login_user, register_user, save_user_data, updateUserData, logout_user , changePassword, forgetPassword, resetPassword, forgetPasswordOTP, resetPasswordWithOTP}
+
+
+// Add to Wish list 
+
+
+
+const addToWishlist = async (req, res) => {
+  try {
+    // // Verify the token and get the user_id from the payload
+    // const token = req.headers.authorization?.split(' ')[1];
+    // if (!token) {
+    //   return res.status(401).json({ error: 'Unauthorized: Token missing' });
+    // }
+
+    // // Verify the token and get the user_id from the payload
+    // const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // const userId = decoded.user_id;
+    // if (!userId) {
+    //   return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    // }
+    const user_id = req.userId;
+    const { product_id } = req.body;
+
+    // Check if the product is already in the user's wishlist
+    const existingItem = await Wishlists.findOne({
+      user_id: user_id,
+      product_id: product_id,
+    });
+
+    if (existingItem) {
+      return res.status(400).json({ message: 'Product already exists in wishlist.' });
+    }
+
+    // Add the product to the user's wishlist
+    const newItem = await Wishlists.create({
+      user_id: user_id,
+      product_id: product_id,
+    });
+
+    res.status(201).json({ message: 'Product added to wishlist successfully.', data: newItem });
+  } catch (error) {
+    console.error('Error adding to wishlist:', error);
+    res.status(500).json({ message: 'Error adding to wishlist.' });
+  }
+};
+
+
+
+
+const getWishlists = async (req, res) => {
+    try {
+      // Get the user's wishlist items
+      const user_id = req.userId;
+        if(!user_id){
+            return res.status(400).json({error: 'User ID is missing in the request'})
+        }
+
+      const  product_id  = req.body;
+      if(!product_id){
+        return res.status(400).json({error: 'Product ID is missing in the request'})
+      }
+      // Find wishlist items for the given user_id and populate the associated product details
+      const wishListItems = await Wishlists.find({ user_id: user_id }).populate({
+          path: 'product_id',
+          model: Products, // Assuming 'Product' is the name of your product model
+        });
+        
+      res.status(200).json({ data: wishListItems });
+      if(!wishListItems){
+        return res.status(400).json({error: 'Wishlist Item is missing in the request'})
+      }
+    } catch (error) {
+      console.error('Error fetching wishlist', error);
+      res.status(500).json({ message: 'Error fetching wishlist.' });
+    } 
+  };
+
+
+
+
+const removeFromWishlist = async (req, res) => {
+    try {
+      // Check if userId is present in the request
+      const user_Id = req.userId;
+      if (!user_Id) {
+        return res.status(400).json({ error: 'User ID is missing in the request' });
+      }
+  
+      // Check if productId is present in the request body
+      const productId = req.body.product_id;
+      if (!productId) {
+        return res.status(400).json({ error: 'Product ID is missing in the request body' });
+      }
+  
+      // Remove the wishlist item based on userId and productId
+      const result = await Wishlists.findOneAndDelete({
+        user_id: user_Id,
+        product_id: productId,
+      });
+  
+      if (!result) {
+        return res.status(404).json({ error: 'Item not found in the wishlist' });
+      }
+  
+      res.status(200).json({result :'Item removed from wishlist successfully'} );
+    } catch (error) {
+      console.error('Error deleting from wishlist', error);
+  
+      // Check if the error is due to invalid ObjectId
+      if (error.name === 'CastError' && error.kind === 'ObjectId') {
+        return res.status(400).json({ error: 'Invalid product ID format' });
+      }
+  
+      res.status(500).json({ message: 'Error in deleting from wishlist' });
+    }
+  };
+  
+
+
+
+
+
+module.exports ={login_user, register_user, save_user_data, updateUserData, logout_user , resetPassword
+    , changePassword, forgetPassword,addToWishlist,getWishlists,removeFromWishlist,}
