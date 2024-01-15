@@ -481,10 +481,11 @@ const addToWishlist = async (req, res) => {
       product_id: product_id,
     });
 
+
     if (existingItem) {
       return res.status(400).json({ message: 'Product already exists in wishlist.' });
     }
-
+      console.log("njhjkhjk")
     // Add the product to the user's wishlist
     const newItem = await Wishlists.create({
       user_id: user_id,
