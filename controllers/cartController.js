@@ -125,6 +125,7 @@ const getCartItem = async (req, res) => {
   } catch (error) {
     console.error('Error in getting items from cart:', error);
     res.status(500).json({ success: false, message: 'Internal Server Error' });
+    console.error('Error in getting items from cart:', error);
   }
 };
 
