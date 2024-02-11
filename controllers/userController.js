@@ -275,7 +275,7 @@ const forgetPassword = async (req, res) => {
         };
 
         const token = jwt.sign(payload, secret, { expiresIn: '10m' });
-        const resetLink = 'http://localhost:3001/user/reset-password/${user._id}/${token}';
+        const resetLink = `http://localhost:3001/user/reset-password/${user._id}/${token}`;
 
         console.log(resetLink);
 
@@ -356,100 +356,100 @@ const resetPassword = async (req, res) => {
 };
 
 
-const forgetPasswordOTP = async (req, res) => {
-    try {
-        console.log("forget password", req.body);
-        const { email } = req.body;
-        console.log(email);
+// const forgetPasswordOTP = async (req, res) => {
+//     try {
+//         console.log("forget password", req.body);
+//         const { email } = req.body;
+//         console.log(email);
 
-        const user = await User.findOne({ email: email });
+//         const user = await User.findOne({ email: email });
 
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
-        }
+//         if (!user) {
+//             return res.status(404).json({ success: false, message: 'User not found' });
+//         }
 
-        // Generate OTP
-        const otpSecret = speakeasy.generateSecret({ length: 6 });
-        const otpToken = speakeasy.totp({
-            secret: otpSecret.base32,
-            encoding: 'base32'
-        });
+//         // Generate OTP
+//         const otpSecret = speakeasy.generateSecret({ length: 6 });
+//         const otpToken = speakeasy.totp({
+//             secret: otpSecret.base32,
+//             encoding: 'base32'
+//         });
 
-        // Store OTP secret and token in the user document
-        user.otpSecret = otpSecret.base32;
-        user.otpToken = otpToken;
-        await user.save();
+//         // Store OTP secret and token in the user document
+//         user.otpSecret = otpSecret.base32;
+//         user.otpToken = otpToken;
+//         await user.save();
 
-        // Send the OTP to the user via email
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASSWORD
-            }
-        });
+//         // Send the OTP to the user via email
+//         const transporter = nodemailer.createTransport({
+//             host: 'smtp.gmail.com',
+//             port: 465,
+//             secure: true,
+//             auth: {
+//                 user: process.env.EMAIL_USER,
+//                 pass: process.env.EMAIL_PASSWORD
+//             }
+//         });
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: 'Password Reset OTP',
-            html: '<p>Your OTP for password reset is: ${otpToken}</p>'
-        };
+//         const mailOptions = {
+//             from: process.env.EMAIL_USER,
+//             to: user.email,
+//             subject: 'Password Reset OTP',
+//             html: '<p>Your OTP for password reset is: ${otpToken}</p>'
+//         };
 
-        await transporter.sendMail(mailOptions);
+//         await transporter.sendMail(mailOptions);
 
-        res.status(200).json({ success: true, message: 'OTP sent successfully.' });
-    } catch (error) {
-        console.error('Error in forgetting password:', error);
-        res.status(500).json({ success: false, message: 'Internal Server Error' });
-    }
-};
+//         res.status(200).json({ success: true, message: 'OTP sent successfully.' });
+//     } catch (error) {
+//         console.error('Error in forgetting password:', error);
+//         res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// };
 
-const resetPasswordWithOTP = async (req, res) => {
-    try {
-        const { id, otp } = req.params;
-        console.log(id);
-        console.log(otp);
-        const { newPassword, confirmPassword } = req.body;
+// const resetPasswordWithOTP = async (req, res) => {
+//     try {
+//         const { id, otp } = req.params;
+//         console.log(id);
+//         console.log(otp);
+//         const { newPassword, confirmPassword } = req.body;
 
-        if (!newPassword || !confirmPassword) {
-            return res.status(400).json({ success: false, message: 'Both newPassword and confirmPassword are required' });
-        }
+//         if (!newPassword || !confirmPassword) {
+//             return res.status(400).json({ success: false, message: 'Both newPassword and confirmPassword are required' });
+//         }
 
-        if (newPassword !== confirmPassword) {
-            return res.status(400).json({ success: false, message: 'New password and confirm password do not match' });
-        }
+//         if (newPassword !== confirmPassword) {
+//             return res.status(400).json({ success: false, message: 'New password and confirm password do not match' });
+//         }
 
-        const user = await User.findById(id);
+//         const user = await User.findById(id);
 
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
-        }
+//         if (!user) {
+//             return res.status(404).json({ success: false, message: 'User not found' });
+//         }
 
-        // Verify the OTP
-        const otpValid = speakeasy.totp.verify({
-            secret: user.otpSecret,
-            encoding: 'base32',
-            token: otp,
-            window: 1 // Allow a time window of 1 step (30 seconds) in case of clock skew
-        });
+//         // Verify the OTP
+//         const otpValid = speakeasy.totp.verify({
+//             secret: user.otpSecret,
+//             encoding: 'base32',
+//             token: otp,
+//             window: 1 // Allow a time window of 1 step (30 seconds) in case of clock skew
+//         });
 
-        if (!otpValid) {
-            return res.status(400).json({ success: false, message: 'Invalid OTP' });
-        }
+//         if (!otpValid) {
+//             return res.status(400).json({ success: false, message: 'Invalid OTP' });
+//         }
 
-        // Reset password logic here
-        user.password = await bcryptjs.hash(newPassword, 10);
-        await user.save();
+//         // Reset password logic here
+//         user.password = await bcryptjs.hash(newPassword, 10);
+//         await user.save();
 
-        res.status(200).json({ success: true, message: 'Password reset successful' });
-    } catch (error) {
-        console.error('Error in resetting password:', error);
-        res.status(500).json({ success: false, message: 'Internal Server Error' });
-    }
-};
+//         res.status(200).json({ success: true, message: 'Password reset successful' });
+//     } catch (error) {
+//         console.error('Error in resetting password:', error);
+//         res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// };
 
 
 
@@ -460,18 +460,6 @@ const resetPasswordWithOTP = async (req, res) => {
 
 const addToWishlist = async (req, res) => {
   try {
-    // // Verify the token and get the user_id from the payload
-    // const token = req.headers.authorization?.split(' ')[1];
-    // if (!token) {
-    //   return res.status(401).json({ error: 'Unauthorized: Token missing' });
-    // }
-
-    // // Verify the token and get the user_id from the payload
-    // const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // const userId = decoded.user_id;
-    // if (!userId) {
-    //   return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-    // }
     const user_id = req.userId;
     const { product_id } = req.body;
 
@@ -485,7 +473,7 @@ const addToWishlist = async (req, res) => {
     if (existingItem) {
       return res.status(400).json({ message: 'Product already exists in wishlist.' });
     }
-      console.log("njhjkhjk")
+
     // Add the product to the user's wishlist
     const newItem = await Wishlists.create({
       user_id: user_id,
