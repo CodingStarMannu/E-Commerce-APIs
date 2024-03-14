@@ -1,4 +1,4 @@
-const Banner = require("../models/Banner");
+const Banner = require("../models/banner");
 const InStock = require("../models/stock");
 const Admin = require("../models/admin");
 const bcryptjs = require("bcryptjs");
