@@ -106,7 +106,8 @@ const addBanner = async (req, res) => {
     );
 
     // Construct complete image paths with the new base URL
-    const baseUrl = "http://localhost:3001/";
+    // const baseUrl = "http://localhost:3001/";
+    const baseUrl = "https://e-commerce-apis-mch4.onrender.com/";
 
     const completeBannerImagePath1 = `${baseUrl}${bannerImagePath1.replace(
       /\\/g,
@@ -177,7 +178,9 @@ const updateBanner = async (req, res) => {
     );
 
     // Construct complete image paths with the new base URL
-    const baseUrl = "http://localhost:3001/";
+    // const baseUrl = "http://localhost:3001/";
+    const baseUrl = "https://e-commerce-apis-mch4.onrender.com/";
+
 
     const completeBannerImagePath1 = `${baseUrl}${bannerImagePath1.replace(
       /\\/g,
