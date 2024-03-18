@@ -1,9 +1,12 @@
+
 const User = require('../models/user');
 require('dotenv').config();
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const speakeasy = require('speakeasy');
+const Wishlists = require('../models/wishlist');
+const Products = require('../models/product');
 
 
 
@@ -280,7 +283,7 @@ const forgetPassword = async (req, res) => {
         const emailBody = `<p>Hi ${user.name},</p>
                             <p>Please click the link below to reset your password:</p>
                             <p>This Link is valid for one time and for 10 mins only</p>
-                            <a href="${resetLink}">${resetLink}</a>`;
+ <a href="${resetLink}">${resetLink}</a>`;
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
@@ -353,100 +356,212 @@ const resetPassword = async (req, res) => {
 };
 
 
-const forgetPasswordOTP = async (req, res) => {
-    try {
-        console.log("forget password", req.body);
-        const { email } = req.body;
-        console.log(email);
+// const forgetPasswordOTP = async (req, res) => {
+//     try {
+//         console.log("forget password", req.body);
+//         const { email } = req.body;
+//         console.log(email);
 
-        const user = await User.findOne({ email: email });
+//         const user = await User.findOne({ email: email });
 
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
-        }
+//         if (!user) {
+//             return res.status(404).json({ success: false, message: 'User not found' });
+//         }
 
-        // Generate OTP
-        const otpSecret = speakeasy.generateSecret({ length: 6 });
-        const otpToken = speakeasy.totp({
-            secret: otpSecret.base32,
-            encoding: 'base32'
-        });
+//         // Generate OTP
+//         const otpSecret = speakeasy.generateSecret({ length: 6 });
+//         const otpToken = speakeasy.totp({
+//             secret: otpSecret.base32,
+//             encoding: 'base32'
+//         });
 
-        // Store OTP secret and token in the user document
-        user.otpSecret = otpSecret.base32;
-        user.otpToken = otpToken;
-        await user.save();
+//         // Store OTP secret and token in the user document
+//         user.otpSecret = otpSecret.base32;
+//         user.otpToken = otpToken;
+//         await user.save();
 
-        // Send the OTP to the user via email
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASSWORD
-            }
-        });
+//         // Send the OTP to the user via email
+//         const transporter = nodemailer.createTransport({
+//             host: 'smtp.gmail.com',
+//             port: 465,
+//             secure: true,
+//             auth: {
+//                 user: process.env.EMAIL_USER,
+//                 pass: process.env.EMAIL_PASSWORD
+//             }
+//         });
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: 'Password Reset OTP',
-            html: `<p>Your OTP for password reset is: ${otpToken}</p>`
-        };
+//         const mailOptions = {
+//             from: process.env.EMAIL_USER,
+//             to: user.email,
+//             subject: 'Password Reset OTP',
+//             html: '<p>Your OTP for password reset is: ${otpToken}</p>'
+//         };
 
-        await transporter.sendMail(mailOptions);
+//         await transporter.sendMail(mailOptions);
 
-        res.status(200).json({ success: true, message: 'OTP sent successfully.' });
-    } catch (error) {
-        console.error('Error in forgetting password:', error);
-        res.status(500).json({ success: false, message: 'Internal Server Error' });
+//         res.status(200).json({ success: true, message: 'OTP sent successfully.' });
+//     } catch (error) {
+//         console.error('Error in forgetting password:', error);
+//         res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// };
+
+// const resetPasswordWithOTP = async (req, res) => {
+//     try {
+//         const { id, otp } = req.params;
+//         console.log(id);
+//         console.log(otp);
+//         const { newPassword, confirmPassword } = req.body;
+
+//         if (!newPassword || !confirmPassword) {
+//             return res.status(400).json({ success: false, message: 'Both newPassword and confirmPassword are required' });
+//         }
+
+//         if (newPassword !== confirmPassword) {
+//             return res.status(400).json({ success: false, message: 'New password and confirm password do not match' });
+//         }
+
+//         const user = await User.findById(id);
+
+//         if (!user) {
+//             return res.status(404).json({ success: false, message: 'User not found' });
+//         }
+
+//         // Verify the OTP
+//         const otpValid = speakeasy.totp.verify({
+//             secret: user.otpSecret,
+//             encoding: 'base32',
+//             token: otp,
+//             window: 1 // Allow a time window of 1 step (30 seconds) in case of clock skew
+//         });
+
+//         if (!otpValid) {
+//             return res.status(400).json({ success: false, message: 'Invalid OTP' });
+//         }
+
+//         // Reset password logic here
+//         user.password = await bcryptjs.hash(newPassword, 10);
+//         await user.save();
+
+//         res.status(200).json({ success: true, message: 'Password reset successful' });
+//     } catch (error) {
+//         console.error('Error in resetting password:', error);
+//         res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// };
+
+
+
+
+// Add to Wish list 
+
+
+
+const addToWishlist = async (req, res) => {
+  try {
+    const user_id = req.userId;
+    const { product_id } = req.body;
+
+    // Check if the product is already in the user's wishlist
+    const existingItem = await Wishlists.findOne({
+      user_id: user_id,
+      product_id: product_id,
+    });
+
+
+    if (existingItem) {
+      return res.status(400).json({ message: 'Product already exists in wishlist.' });
     }
+
+    // Add the product to the user's wishlist
+    const newItem = await Wishlists.create({
+      user_id: user_id,
+      product_id: product_id,
+    });
+
+    res.status(201).json({ message: 'Product added to wishlist successfully.', data: newItem });
+  } catch (error) {
+    console.error('Error adding to wishlist:', error);
+    res.status(500).json({ message: 'Error adding to wishlist.' });
+  }
 };
 
-const resetPasswordWithOTP = async (req, res) => {
+
+
+
+const getWishlists = async (req, res) => {
     try {
-        const { id, otp } = req.params;
-        console.log(id);
-        console.log(otp);
-        const { newPassword, confirmPassword } = req.body;
-
-        if (!newPassword || !confirmPassword) {
-            return res.status(400).json({ success: false, message: 'Both newPassword and confirmPassword are required' });
+      // Get the user's wishlist items
+      const user_id = req.userId;
+        if(!user_id){
+            return res.status(400).json({error: 'User ID is missing in the request'})
         }
 
-        if (newPassword !== confirmPassword) {
-            return res.status(400).json({ success: false, message: 'New password and confirm password do not match' });
-        }
-
-        const user = await User.findById(id);
-
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
-        }
-
-        // Verify the OTP
-        const otpValid = speakeasy.totp.verify({
-            secret: user.otpSecret,
-            encoding: 'base32',
-            token: otp,
-            window: 1 // Allow a time window of 1 step (30 seconds) in case of clock skew
+      const  product_id  = req.body;
+      if(!product_id){
+        return res.status(400).json({error: 'Product ID is missing in the request'})
+      }
+      // Find wishlist items for the given user_id and populate the associated product details
+      const wishListItems = await Wishlists.find({ user_id: user_id }).populate({
+          path: 'product_id',
+          model: Products, // Assuming 'Product' is the name of your product model
         });
-
-        if (!otpValid) {
-            return res.status(400).json({ success: false, message: 'Invalid OTP' });
-        }
-
-        // Reset password logic here
-        user.password = await bcryptjs.hash(newPassword, 10);
-        await user.save();
-
-        res.status(200).json({ success: true, message: 'Password reset successful' });
+        
+      res.status(200).json({ data: wishListItems });
+      if(!wishListItems){
+        return res.status(400).json({error: 'Wishlist Item is missing in the request'})
+      }
     } catch (error) {
-        console.error('Error in resetting password:', error);
-        res.status(500).json({ success: false, message: 'Internal Server Error' });
+      console.error('Error fetching wishlist', error);
+      res.status(500).json({ message: 'Error fetching wishlist.' });
+    } 
+  };
+
+
+
+
+const removeFromWishlist = async (req, res) => {
+    try {
+      // Check if userId is present in the request
+      const user_Id = req.userId;
+      if (!user_Id) {
+        return res.status(400).json({ error: 'User ID is missing in the request' });
+      }
+  
+      // Check if productId is present in the request body
+      const productId = req.body.product_id;
+      if (!productId) {
+        return res.status(400).json({ error: 'Product ID is missing in the request body' });
+      }
+  
+      // Remove the wishlist item based on userId and productId
+      const result = await Wishlists.findOneAndDelete({
+        user_id: user_Id,
+        product_id: productId,
+      });
+  
+      if (!result) {
+        return res.status(404).json({ error: 'Item not found in the wishlist' });
+      }
+  
+      res.status(200).json({result :'Item removed from wishlist successfully'} );
+    } catch (error) {
+      console.error('Error deleting from wishlist', error);
+  
+      // Check if the error is due to invalid ObjectId
+      if (error.name === 'CastError' && error.kind === 'ObjectId') {
+        return res.status(400).json({ error: 'Invalid product ID format' });
+      }
+  
+      res.status(500).json({ message: 'Error in deleting from wishlist' });
     }
-};
+  };
+  
 
 
-module.exports ={login_user, register_user, save_user_data, updateUserData, logout_user , changePassword, forgetPassword, resetPassword, forgetPasswordOTP, resetPasswordWithOTP}
+
+
+
+module.exports ={login_user, register_user, save_user_data, updateUserData, logout_user , resetPassword
+    , changePassword, forgetPassword,addToWishlist,getWishlists,removeFromWishlist,}

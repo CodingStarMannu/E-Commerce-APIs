@@ -5,6 +5,7 @@ const user = require('../controllers/userController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const upload = require('../middlewares/multerConfig');
 
+
 router.post('/register', user.register_user);
 
 router.post('/login', user.login_user);
@@ -20,6 +21,9 @@ router.post('/change-password', authMiddleware, user.changePassword);
 router.post('/forget-password', user.forgetPassword);
 
 router.patch('/reset-password/:id/:token', user.resetPassword);
+router.post('/addToWishList',authMiddleware,user.addToWishlist)
+router.get('/getWishlists',authMiddleware, user.getWishlists)
+router.delete('/remove-from-wishlist',authMiddleware,user.removeFromWishlist)
 
 // router.post('/forget-password', user.forgetPasswordOTP);
 
