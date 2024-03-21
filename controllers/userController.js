@@ -2,46 +2,12 @@ const User = require("../models/user");
 require("dotenv").config();
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { TokenExpiredError } = require('jsonwebtoken');
 const nodemailer = require("nodemailer");
-const speakeasy = require("speakeasy");
 const Wishlists = require("../models/wishlist");
 const Products = require("../models/product");
 const path = require("path");
 
-// const sendResetPasswordMail =  async (name, email, token) =>{
-//     try {
-
-//        const transporter = nodemailer.createTransport({
-//             host:'smtp.gmail.com',
-//             port:465,
-//             secure:true,
-//             requireTLS:true,
-//             auth:{
-//                 user:process.env.EMAIL_USER,
-//                 password:process.env.EMAIL_PASSWORD,
-//             },
-//             debug: true,
-//         });
-
-//         const mailOptions ={
-//             from:process.env.EMAIL_USER,
-//             to: email,
-//             subject:'For Reset Password',
-//             html:'<p> Hii '+name+', Please click the link and <a href="http://localhost:3001/user/reset-password?token='+token+'"> Reset your password </a> </p>'
-//         }
-
-//         await transporter.sendMail(mailOptions,function(error, info){
-//             if(error){
-//                 console.log(error);
-//             }else{
-//                 console.log("Mail has been sent:-" ,info.response);
-//             }
-//         });
-
-//     } catch (error) {
-//         return res.status(500).json({ message: 'Internal Server Error' });
-//     }
-// }
 
 const securePassword = async (password) => {
   try {
@@ -184,15 +150,8 @@ const save_user_data = async (req, res) => {
 
 const logout_user = async (req, res) => {
   try {
-    // const userId = req.userId;
-    // console.log(userId);
 
-    // Extracting the token from the request headers
     const token = req.header("Authorization").replace("Bearer ", "");
-
-    // const decodedToken = jwt.decode(token);
-    // const user_id = decodedToken._id;
-    // console.log(user_id);
 
     await req.user.updateOne({ $pull: { tokens: { token } } });
 
@@ -233,236 +192,151 @@ const changePassword = async (req, res) => {
   }
 };
 
-// const forgetPassword = async (req, res) => {
-//     try {
-//         const userEmail = req.body.email; // Fix: Use req.body.email instead of email
-
-//         const user = await User.findOne({ email: userEmail });
-
-//         if (user) {
-//             const randomString = randomstring.generate();
-//             await User.updateOne({ email: userEmail }, { $set: { token: randomString } }); // Fix: Use userEmail
-//             sendResetPasswordMail(user.name, user.email, randomString);
-//             res.status(200).send({ success: true, message: 'Please check your inbox of mail and reset your password.' });
-//         } else {
-//             return res.status(404).json({ success: false, message: 'User not found' });
-//         }
-//     } catch (error) {
-//         console.error('Error in forgetting password:', error);
-//         res.status(500).json({ success: false, message: 'Internal Server Error' });
-//     }
-// };
 
 const forgetPassword = async (req, res) => {
-  try {
-    console.log("forget password", req.body);
-    const { email } = req.body;
-    console.log(email);
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email: email });
 
-    const user = await User.findOne({ email: email });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
 
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+          // Create a reset token with a timestamp (valid for 10 minutes)
+          const resetToken = jwt.sign({ userId: user._id, timestamp: Date.now() }, process.env.SECRET_KEY, { expiresIn: '10m' });
+
+          const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
+
+        console.log(resetLink); 
+
+        const emailSubject = 'Click On The Link To Reset PassWord';
+        const emailBody = `
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+          }
+          .greeting {
+            color: pink;    
+            font-size: 18px;
+            margin-bottom: 10px;
+          }
+          .instructions {
+            margin-bottom: 20px;
+          }
+          .reset-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+          }
+          .reset-link:hover {
+            background-color: #0056b3;
+          }
+        </style>
+        <div class="container">
+          <p class="greeting">${user.name ? `Hi ${user.name},` : 'Dear Customer,'}</p>
+          <p class="instructions">Please click the link below to reset your password:</p>
+          <p class="instructions">This Link is valid for one time and for 10 mins only</p>
+          <a class="reset-link" href="${resetLink}">${resetLink}</a>
+        </div>
+      `;
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: emailSubject,
+            html: emailBody
+        };
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
+            }
+        });
+
+       const info=  await transporter.sendMail(mailOptions);
+       console.log("Mail has been sent:-" ,info.response);
+
+        res.status(200).json({ success: true, message: 'Please check your inbox for the password reset link.',id:user.id });
+    } catch (error) {
+        console.error('Error in forgetting password:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
-
-    const secret = process.env.SECRET_KEY + user.password;
-
-    const payload = {
-      email: user.email,
-      id: user._id,
-    };
-
-    const token = jwt.sign(payload, secret, { expiresIn: "10m" });
-    // const resetLink = `http://localhost:3001/user/reset-password/${user._id}/${token}`;
-    const resetLink = `https://e-commerce-apis-mch4.onrender.com/${user._id}/${token}`;
-
-    console.log(resetLink);
-
-    const emailSubject = "Password Reset";
-    const emailBody = `<p>Hi ${user.name},</p>
-                            <p>Please click the link below to reset your password:</p>
-                            <p>This Link is valid for one time and for 10 mins only</p>
- <a href="${resetLink}">${resetLink}</a>`;
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: emailSubject,
-      html: emailBody,
-    };
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Mail has been sent:-", info.response);
-
-    res.status(200).json({
-      success: true,
-      message: "Please check your inbox for the password reset link.",
-    });
-  } catch (error) {
-    console.error("Error in forgetting password:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
 };
+
+
+
+const verifyToken = async (req, res) => {
+    try {
+        const { token } = req.query;
+
+        if (!token) {
+            return res.status(400).json({ success: false, message: 'Token is required' });
+        }
+
+        const decoded = jwt.verify(token, process.env.SECRET_KEY);
+        const currentTimestamp = Date.now();
+        const tokenTimestamp = decoded.timestamp;
+        const tokenExpiration = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+        if (currentTimestamp - tokenTimestamp > tokenExpiration) {
+            return res.status(401).json({ success: false, message: 'Token has expired' });
+        }
+
+        res.status(200).json({ success: true, message: 'Token is valid', userId: decoded.userId });
+    } catch (error) {
+        console.error('Error verifying token:', error);
+        res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+};
+
 
 const resetPassword = async (req, res) => {
-  try {
-    const { id, token } = req.params;
-    const { newPassword, confirmPassword } = req.body;
+    try {
+        const { token } = req.query;
+        const { newPassword } = req.body;
 
-    if (!newPassword || !confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Both newPassword and confirmPassword are required",
-      });
+        if (!token || !newPassword) {
+            return res.status(400).json({ success: false, message: 'Token and newPassword are required' });
+        }
+
+        try {
+            const decoded = jwt.verify(token, process.env.SECRET_KEY);
+
+            // Find the user by id
+            const user = await User.findById(decoded.userId);
+
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'User not found' });
+            }
+            user.password = await securePassword(newPassword);
+            await user.save();
+
+            return res.status(200).json({ success: true, message: 'Password reset successfully' });
+        } catch (error) {
+            if (error instanceof TokenExpiredError) {
+                return res.status(401).json({ success: false, message: 'Token has expired' });
+            } else {
+                throw error; 
+            }
+        }
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
-
-    if (newPassword !== confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "New password and confirm password do not match",
-      });
-    }
-
-    const user = await User.findOne({ _id: id });
-
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    const secret = process.env.SECRET_KEY + user.password;
-    const decoded = jwt.verify(token, secret);
-
-    if (id !== decoded.id) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid user ID in the token" });
-    }
-
-    user.password = await bcryptjs.hash(newPassword, 10);
-    await user.save();
-
-    res
-      .status(200)
-      .json({ success: true, message: "Password reset successful" });
-  } catch (error) {
-    if (error.name === "TokenExpiredError") {
-      return res.status(400).json({ success: false, message: "Token expired" });
-    } else if (error.name === "JsonWebTokenError") {
-      return res.status(400).json({ success: false, message: "Invalid token" });
-    }
-
-    console.error("Error in resetting password:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
 };
-
-// const forgetPasswordOTP = async (req, res) => {
-//     try {
-//         console.log("forget password", req.body);
-//         const { email } = req.body;
-//         console.log(email);
-
-//         const user = await User.findOne({ email: email });
-
-//         if (!user) {
-//             return res.status(404).json({ success: false, message: 'User not found' });
-//         }
-
-//         // Generate OTP
-//         const otpSecret = speakeasy.generateSecret({ length: 6 });
-//         const otpToken = speakeasy.totp({
-//             secret: otpSecret.base32,
-//             encoding: 'base32'
-//         });
-
-//         // Store OTP secret and token in the user document
-//         user.otpSecret = otpSecret.base32;
-//         user.otpToken = otpToken;
-//         await user.save();
-
-//         // Send the OTP to the user via email
-//         const transporter = nodemailer.createTransport({
-//             host: 'smtp.gmail.com',
-//             port: 465,
-//             secure: true,
-//             auth: {
-//                 user: process.env.EMAIL_USER,
-//                 pass: process.env.EMAIL_PASSWORD
-//             }
-//         });
-
-//         const mailOptions = {
-//             from: process.env.EMAIL_USER,
-//             to: user.email,
-//             subject: 'Password Reset OTP',
-//             html: '<p>Your OTP for password reset is: ${otpToken}</p>'
-//         };
-
-//         await transporter.sendMail(mailOptions);
-
-//         res.status(200).json({ success: true, message: 'OTP sent successfully.' });
-//     } catch (error) {
-//         console.error('Error in forgetting password:', error);
-//         res.status(500).json({ success: false, message: 'Internal Server Error' });
-//     }
-// };
-
-// const resetPasswordWithOTP = async (req, res) => {
-//     try {
-//         const { id, otp } = req.params;
-//         console.log(id);
-//         console.log(otp);
-//         const { newPassword, confirmPassword } = req.body;
-
-//         if (!newPassword || !confirmPassword) {
-//             return res.status(400).json({ success: false, message: 'Both newPassword and confirmPassword are required' });
-//         }
-
-//         if (newPassword !== confirmPassword) {
-//             return res.status(400).json({ success: false, message: 'New password and confirm password do not match' });
-//         }
-
-//         const user = await User.findById(id);
-
-//         if (!user) {
-//             return res.status(404).json({ success: false, message: 'User not found' });
-//         }
-
-//         // Verify the OTP
-//         const otpValid = speakeasy.totp.verify({
-//             secret: user.otpSecret,
-//             encoding: 'base32',
-//             token: otp,
-//             window: 1 // Allow a time window of 1 step (30 seconds) in case of clock skew
-//         });
-
-//         if (!otpValid) {
-//             return res.status(400).json({ success: false, message: 'Invalid OTP' });
-//         }
-
-//         // Reset password logic here
-//         user.password = await bcryptjs.hash(newPassword, 10);
-//         await user.save();
-
-//         res.status(200).json({ success: true, message: 'Password reset successful' });
-//     } catch (error) {
-//         console.error('Error in resetting password:', error);
-//         res.status(500).json({ success: false, message: 'Internal Server Error' });
-//     }
-// };
 
 // Add to Wish list
 
@@ -582,6 +456,7 @@ module.exports = {
   resetPassword,
   changePassword,
   forgetPassword,
+  verifyToken,
   addToWishlist,
   getWishlists,
   removeFromWishlist,
