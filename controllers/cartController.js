@@ -55,11 +55,6 @@ const updateCart = async (req, res) => {
 
       const cartItem = cart.items.find(item => item.product_id && item.product_id.toString() === productIdToFind);//find is used to find the first element in the array that satisfies the condition returns undefined if not found
 
-      // if (cartItem) {
-      //     console.log('Item found:', cartItem);
-      // } else {
-      //     console.log('Item not found');
-      // }
 
       if (cartItem) {
           cartItem.quantity = quantity || 1;
