@@ -329,6 +329,29 @@ const getAllUsersList = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+const deleteUserbyadmin = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    // Check if the user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "User deleted successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 module.exports = {
   admin_register,
@@ -342,4 +365,5 @@ module.exports = {
   getInStockByProductId,
   deleteInStockById,
   getAllUsersList,
-};
+  deleteUserbyadmin
+}
