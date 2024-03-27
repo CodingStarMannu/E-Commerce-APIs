@@ -15,6 +15,7 @@ router.get('/get-item-cart/:id', authMiddleware, cartController.getCartItemById)
 
 router.delete('/delete-item-cart/:id', authMiddleware, cartController.deleteCartItem);
 
+// router.post('/order/:userId' , cartController.plceorder);
 
 
 module.exports = router;
