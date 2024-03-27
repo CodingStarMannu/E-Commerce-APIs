@@ -1,6 +1,7 @@
 const Banner = require("../models/banner");
 const InStock = require("../models/stock");
 const Admin = require("../models/admin");
+const User = require("../models/user");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -63,12 +64,10 @@ const login_admin = async (req, res) => {
     const isPasswordValid = await bcryptjs.compare(password, admin.password);
 
     if (!isPasswordValid) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          msg: "Incorrect name or password please check",
-        });
+      return res.status(401).json({
+        success: false,
+        msg: "Incorrect name or password please check",
+      });
     }
     const admin_id = admin._id;
 
@@ -146,7 +145,6 @@ const addBanner = async (req, res) => {
 
 const updateBanner = async (req, res) => {
   try {
-
     // Find the last existing banner with banner_id = 1
     const existingBanner = await Banner.findOne({ banner_id: 1 }).sort({
       createdAt: -1,
@@ -162,7 +160,6 @@ const updateBanner = async (req, res) => {
       return res.status(400).json({ message: "No files were uploaded." });
     }
 
-  
     // Construct image paths
     const bannerImagePath1 = path.join(
       "images",
@@ -180,7 +177,6 @@ const updateBanner = async (req, res) => {
     // Construct complete image paths with the new base URL
     // const baseUrl = "http://localhost:3001/";
     const baseUrl = "https://e-commerce-apis-mch4.onrender.com/";
-
 
     const completeBannerImagePath1 = `${baseUrl}${bannerImagePath1.replace(
       /\\/g,
@@ -214,7 +210,7 @@ const updateBanner = async (req, res) => {
     console.error("Error updating banner:", error);
     res.status(500).json({ message: "Error updating banner." });
   }
-}
+};
 
 const getBanner = async (req, res) => {
   try {
@@ -317,6 +313,23 @@ const deleteInStockById = async (req, res) => {
   }
 };
 
+const getAllUsersList = async (req, res) => {
+  try {
+    const users = await User.find();
+    if (!users || users.length === 0) {
+      return res.status(404).json({ success: false, error: "No users found" });
+    }
+    res.status(200).json({
+      success: true,
+      message: "All Users are fetched successfully",
+      data: users,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   admin_register,
   login_admin,
@@ -328,4 +341,5 @@ module.exports = {
   addImage,
   getInStockByProductId,
   deleteInStockById,
+  getAllUsersList,
 };
