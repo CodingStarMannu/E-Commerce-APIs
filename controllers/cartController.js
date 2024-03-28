@@ -81,6 +81,7 @@ const updateCart = async (req, res) => {
     }
 
     await cart.save();
+    
 
     res
       .status(200)
@@ -168,89 +169,8 @@ const getCartItemById = async (req, res) => {
   }
 };
 
-    // const plceorder = async (req,res)=>{
-    //   try {
-    //     const { user_id } = req.params;
-    
-    //     // Find the user's cart
-    //     const cart = await Cart.findOne({ user_id }).populate('items.product_id');
-    
-    //     if (!cart) {
-    //       return res.status(404).json({ message: 'Cart not found' });
-    //     }
-    
-    //     // Create an order object
-    //     const order = new Order({
-    //       user_id: cart.user_id,
-    //       items: cart.items.map(item => ({
-    //         product_id: item.product_id._id,
-    //         quantity: item.quantity,
-    //         total_price: item.total_price
-    //       })),
-    //       // You may add additional fields like shipping details, order status, etc.
-    //     });
-    
-    //     // Calculate total order price
-    //     const totalOrderPrice = cart.items.reduce((total, item) => total + item.total_price, 0);
-    //     order.total_price = totalOrderPrice;
-    
-    //     // Save the order
-    //     await order.save();
-    
-    //     // Clear the user's cart
-    //     cart.items = [];
-    //     await cart.save();
-    
-    //     res.status(201).json({ message: 'Order created successfully', order });
-    //   } catch (error) {
-    //     console.error(error);
-    //     res.status(500).json({ message: 'Server Error' });
-    //   }
 
-    // }
 
-    // const plceorder = async (req, res) => {
-    //   try {
-    //     const { user_id } = req.params.userId; 
-    
-    //     // Find the user's cart
-    //     const cart = await Cart.findOne({ user_id }).populate('items.product_id');
-    
-    //     if (!cart || !cart.items || cart.items.length === 0) {
-    //       return res.status(404).json({ message: 'Cart not found or empty' });
-    //     }
-    
-    //     // Create an order object
-    //     const orderItems = cart.items.map(item => ({
-    //       product_id: item.product_id._id,
-    //       quantity: item.quantity,
-    //       total_price: item.total_price
-    //     }));
-    
-    //     const order = new Order({
-    //       user_id: cart.user_id,
-    //       items: orderItems,
-    //       // You may add additional fields like shipping details, order status, etc.
-    //     });
-    
-    //     // Calculate total order price
-    //     const totalOrderPrice = cart.items.reduce((total, item) => total + item.total_price, 0);
-    //     order.total_price = totalOrderPrice;
-    
-    //     // Save the order
-    //     await order.save();
-    
-    //     // Clear the user's cart
-    //     cart.items = [];
-    //     await cart.save();
-    
-    //     res.status(201).json({ message: 'Order created successfully', order });
-    //   } catch (error) {
-    //     console.error(error);
-    //     res.status(500).json({ message: 'Server Error' });
-    //   }
-    // };
-  
   
 module.exports = {
   addToCart,
