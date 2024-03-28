@@ -54,6 +54,10 @@ const orderSchema = new mongoose.Schema({
         type: String,
         require: true
     },
+    pincode: {
+        type: Number,
+        require: true
+    },
     orderDate: {
         type: Date,
         default: Date.now           
