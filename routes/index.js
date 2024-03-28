@@ -4,6 +4,9 @@ const router = express.Router();
 
 router.use('/user', require('./userRoutes'));
 router.use('/user', require('./cartRoutes'));
+router.use('/user', require('./orderRoutes'));
+
+
 
 router.use('/admin', require('./adminRoutes'));
 router.use('/admin', require('./categoryRoutes'));
